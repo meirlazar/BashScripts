@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Written by Meir Lazar
-# Version 3.1 11/27/2019
+# Version 3.3 12/02/2019
 
 # Purpose: This script, using the PTO accrual rate and the amount of PTO you currently have saved up, will calculate how much PTO you will have at every pay period, both in hours and days.
 # It will also show which Jewish Observant Holidays will be taken off and calculate your PTO based on that data.
