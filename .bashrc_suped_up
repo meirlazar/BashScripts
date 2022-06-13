@@ -1,0 +1,54 @@
+export HISTTIMEFORMAT="%F %T "
+export HISTCONTROL=$HISTCONTROL${HISTCONTROL+,}ignoredups
+export HISTCONTROL=ignoredups:erasedups  # no duplicate entries
+export HISTSIZE=1000000                   # big big history
+export HISTFILESIZE=100000               # big big history
+shopt -s histappend                      # append to history, don't overwrite it
+# Save and reload the history after each command finishes
+export PROMPT_COMMAND="history -a; history -c; history -r; $PROMPT_COMMAND"
+
+# COLORS AND LOCATION ON SCREEN TO WRITE STUFF
+# EXAMPLE
+# BLUE ; BOLD; SHOW 16 25 ; echo -e "STATES AND DEFINITIONS"
+
+function TEAL () { tput sgr0 ; tput setaf 50 ; }
+function PURPLE () { tput sgr0 ; tput setaf 57 ; }
+function BLUE () { tput sgr0 ; tput setaf 6 ; }
+function YELLOW () { tput sgr0 ; tput setaf 3 ; }
+function GREY () { tput sgr0 ; tput setaf 8 ; }
+function PINK () { tput sgr0 ; tput setaf 99 ; }
+function GREEN () { tput sgr0 ; tput setaf 2 ; }
+function LIGHTGREEN () { tput sgr0 ; tput setaf 82 ; }
+function DARKBLUE () { tput sgr0 ; tput setaf 4 ; }
+function RED () { tput sgr0 ; tput setaf 1 ; }
+function WHITE () { tput sgr0 ; tput setaf 7 ; }
+function BOLD () { tput bold ; }
+function CLEAR () { tput sgr0 ; tput clear ; }
+function RESET () { tput sgr0 ; }
+function SHOW () { tput cup $1 $2 ; }
+
+
+# aliases
+
+alias destroy='echo "use this command with a folder or filename" && shred -vfz -n 100'
+alias shrinkphotos='find . -type f -name "*.jpg" -size +1M -exec jpegoptim  --max=70 {} \;'
+alias downloadallfromwebsite='echo "specify param1 as username param2 as pass and param3 as webaddress" && wget -Pedr -nH --user $1 --password $2 http://$3'
+
+
+
+# functions
+
+
+function portcheck () {
+IP=${1?Specify IP}
+PORT=${2?Specify Port}
+if ! nc -v -4 -z -w 5 -n $IP $PORT > /dev/null 2>&1 ; then echo "$(date +'%F %T') - ERROR IP=${IP} Port=${PORT} Connectivity Failed"
+else echo "$(date +'%F %T') - INFO - IP=${IP} Port=${PORT} Connectivity Passed"
+fi
+}
+
+function SCANDHCP () {
+sudo nmap -sn X.X.X.1-254 | awk '/Nmap scan/{gsub(/[()]/,"",$NF); print $NF}'
+sudo nmap -sn Y.Y.Y.1-254 | awk '/Nmap scan/{gsub(/[()]/,"",$NF); print $NF}'
+}
+
