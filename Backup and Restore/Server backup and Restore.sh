@@ -1,11 +1,11 @@
 # Backup Script of Server
 
 DATE=$(date +"%b%d%Y")
-BKUPDIR="/media/ALLDATA3/Installs/Ubuntu_latest/Backups/server/$DATE"
+BKUPDIR="/media/Backups/$HOSTNAME/$DATE"
 
 
 # Backup all important directories
-DIRS="/etc /var /home/meir /root /opt/couchpotato"
+DIRS="/etc /var $HOME /root /opt/couchpotato"
 
 # Stop all LAMP services before running backup
 
@@ -21,7 +21,7 @@ systemctl start mysql
 
 # Backup the cron
 crontab -l > ${BKUPDIR}/crontab.root
-crontab -u meir -l > ${BKUPDIR}/crontab.meir
+crontab -u $USER -l > ${BKUPDIR}/crontab.$USER
 
 
 echo "END OF SCRIPT. CLOSE IT"
@@ -37,7 +37,7 @@ exit
 
 # Restore Script of Server
 
-echo "Typically /media/ALLDATA3/Installs/Ubuntu_latest/Backups/server/$DATE is used for backups"
+echo "Typically /media/Backups/$HOSTNAME/$DATE is used for backups"
 read -p "What Dir to use for the backups": BKUPDIR
 
 
@@ -47,7 +47,7 @@ read -p "What Dir to use for the backups": BKUPDIR
 
 # Create NFS share dirs
 
-mkdir -p /media/ALLDATA1 /media/ALLDATA2 /media/ALLDATA3 /media/PRON /media/MEDIA
+mkdir -p /media/data1 /media/data2 /media/data3
 
 
 ###############################################################################
@@ -55,11 +55,10 @@ mkdir -p /media/ALLDATA1 /media/ALLDATA2 /media/ALLDATA3 /media/PRON /media/MEDI
 # Setup /etc/fstab
 
 cat >> /etc/fstab << EOF
-192.168.1.15:/media/ALLDATA1/ /media/ALLDATA1 nfs rsize=37000,wsize=37000,noacl,rw,hard,intr,noatime,nodev,nolock,fsc,nfsvers=3 0 0 
-192.168.1.15:/media/ALLDATA2/ /media/ALLDATA2 nfs rsize=37000,wsize=37000,noacl,rw,hard,intr,noatime,nodev,nolock,fsc,nfsvers=3 0 0
-192.168.1.15:/media/ALLDATA3/ /media/ALLDATA3 nfs rsize=37000,wsize=37000,noacl,rw,hard,intr,noatime,nodev,nolock,fsc,nfsvers=3 0 0
-192.168.1.44:/media/RAID0/PRON /media/PRON nfs rsize=37000,wsize=37000,noacl,rw,hard,intr,noatime,nodev,nolock,fsc,nfsvers=3
-192.168.1.44:/media/RAID0/MEDIA /media/MEDIA nfs rsize=37000,wsize=37000,noacl,rw,hard,intr,noatime,nodev,nolock,fsc,nfsvers=3
+X.X.X.X:/media/data1/ /media/data1 nfs rsize=37000,wsize=37000,noacl,rw,hard,intr,noatime,nodev,nolock,fsc,nfsvers=3 0 0 
+X.X.X.X:/media/data2/ /media/data2 nfs rsize=37000,wsize=37000,noacl,rw,hard,intr,noatime,nodev,nolock,fsc,nfsvers=3 0 0
+X.X.X.X:/media/data3/ /media/data3 nfs rsize=37000,wsize=37000,noacl,rw,hard,intr,noatime,nodev,nolock,fsc,nfsvers=3 0 0
+
 EOF
 
 mount -a || echo "Cannot mount remote dirs. Script will not work until you fix this"
@@ -72,10 +71,10 @@ sudo netplan apply
 
 ###############################################################################
 
-# Restore /home/meir
+# Restore User Home Dir
 
-rsync -av ${BKUPDIR}/home/meir/.bashrc /home/meir/.bashrc
-source /home/meir/.bashrc
+rsync -av ${BKUPDIR}${HOME}/.bashrc ${HOME}/.bashrc
+source ${HOME}/.bashrc
 
 
 ###############################################################################
@@ -89,9 +88,8 @@ systemctl stop ufw
 
 # Setup APACHE LINKS
 
-ln -s /media/ALLDATA3/Installs/ibmrepo/ /var/www/html/
-ln -s "/media/MEDIA/Videos/Instructional Videos/Computer_Tutorials/" /var/www/html/
-ln -s "/media/MEDIA/Installs/Games/Flash/" /var/www/html/
+ln -s /media/data1/mywebdata /var/www/html/
+
 
 ###############################################################################
 
@@ -148,7 +146,7 @@ systemctl start plexmediaserver
 # Install ATOMIC TOOLKIT
 
 git clone https://github.com/htpcBeginner/AtoMiC-ToolKit /home/meir/AtoMiC-ToolKit
-cd /home/meir/AtoMiC-ToolKit/
+cd ${HOME}/AtoMiC-ToolKit/
 bash setup.sh
 
 ###############################################################################
@@ -167,7 +165,7 @@ rsync -av ${BKUPDIR}/opt/couchpotato/data/settings.conf /opt/couchpotato/data/se
 
 # Restore TRANSMISSION
 
-rsync -av ${BKUPDIR}/home/meir/.config/transmission-daemon/settings.json /home/meir/.config/transmission-daemon/settings.json
+rsync -av ${BKUPDIR}/${HOME)/.config/transmission-daemon/settings.json ${HOME}/.config/transmission-daemon/settings.json
 rsync -av ${BKUPDIR}/etc/transmission-daemon/settings.json /etc/transmission-daemon/settings.json
 
 ###############################################################################
@@ -184,7 +182,7 @@ systemctl start apache2 || exit
 
 # Restore the crontab
 crontab ${BKUPDIR}\crontab.root
-crontab -u meir ${BKUPDIR}\crontab.meir
+crontab -u ${USER} ${BKUPDIR}\crontab.${USER}
 
 ###############################################################################
 
