@@ -19,7 +19,7 @@ trap 'TRAPERROR ${LINENO} $?' ERR
 
 # VARIABLES
 TTNS=2
-BACKUPDIRS="Audio Books Installs Karaoke M_J Pictures Torah Videos"
+BACKUPDIRS="Audio Books Apps Pictures Videos"
 BACKUPSOURCE="/media/RAID0/MEDIA"
 DIRTOTALUSED="/tmp/DIRTOTALUSED.log"
 NO=5 #USED FOR NUMBER OF INCREMENTAL BACKUPS
@@ -169,7 +169,7 @@ echo ""
 TYP RED; read -p "BACKUP SOURCE PATH W/O LEADING SLASH (i.e, /media/RAID0/MEDIA)": BACKUPSOURCE
 
 TYP WHITE; ls ${BACKUPSOURCE}
-TYP BLUE; read -p "BACKUP SOURCE DIRS LIST (i.e, Audio Books Installs Karaoke M_J Pictures Torah Videos)": BACKUPDIRS
+TYP BLUE; read -p "BACKUP SOURCE DIRS LIST (i.e, Audio Books Apps Pictures Videos)": BACKUPDIRS
 
 TYP WHITE; read -p "Press Enter to return to the MAIN MENU..."
 TYP CLEAR
