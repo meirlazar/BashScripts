@@ -172,7 +172,7 @@ LOGSTOP "${FUNCNAME[0]}" ; return 0 ;
 
 function CheckPorts () {
 LOGINIT "${FUNCNAME[0]}"
-for x in 80 443 48000 48100 48200 49000 48400 48500 48600; do
+for x in 80 443 49000 49100 49200 49300; do
 if ! grep -ow "${x}" <<< $(netstat -tlpn | grep -iE 'service1|dotnet|httpd'); then
 LOG "WARN" "Port ${x} = NOT Open"; else LOG "INFO" "Port ${x} = Open"; fi
 done
