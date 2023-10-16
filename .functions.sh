@@ -5,14 +5,16 @@
 ##############################################################################
 # Get System Information
 function downloadallfromwebsite () {
-wget -Pedr -nH --user "${1}" --password "${2}" http://"${3}"
+wget -Pedr -nH --user "${1:?"Error: Requires: username as 1st argument"}" --password "${2:?"Error: Requires: password as 2nd argument"}" http://"${3:?"Error: Requires: websitename as 3rd argument"}"
 }
 ##############################################################################
 
 function RUNONALL () {
-CMD=$@
-for x in 192.168.1.44 192.168.1.45 192.168.1.21 ; do 
-ssh -q -t -oLogLevel=error -p 6${x##*.}  meir@${x} "${CMD}" 
+listofips="x.x.x.x y.y.y.y z.z.z.z"
+username=${USER}
+CMD=${@:?"Error: Requires: command to run as argument"}
+for x in ${listofips} ; do 
+ssh -q -t -oLogLevel=error -p 6${x##*.}  ${username}@${x} "${CMD}" 
 done
 }
 
@@ -40,37 +42,17 @@ echo "Here are all the devices in a file - ${PWD}/systemlistinfo";
 systool > "${PWD}"/systemlistinfo ;
 cat systemlistinfo | tr '\t\n' ' ' | sed "s|Supported.*:|\n {&} \n|g"
 }
-# mac address for LIVINGROOMUNIFIAP - 74:ac:b9:c3:6b:fd
-# mac address for DOWNSTAIRSSECONDARYAP - b4:fb:e4:43:df:8f
+
 ##############################################################################
 function unifi_resetfactoryforboth () {
-sshpass -p 5LPc0C7xx5IKdhyX ssh -oStrictHostKeyChecking=no ubnt@192.168.1.3 'mca-cli-op set-default'
+sshpass -p changemetopasswordused ssh -oStrictHostKeyChecking=no ubnt@x.x.x.x 'mca-cli-op set-default'
 sleep 30
-set-inform 'http://192.168.1.21:8080/inform'
+set-inform 'http://x.x.x.x:8080/inform'
 # ssh to device, set-inform http://ip:port/inform
 }
 ##############################################################################
-function unpoller () {
-/opt/google/chrome/chrome "http://192.168.1.21:3000/d/OjEdBlMnz/unifi-poller-client-insights-influxdb?orgId=1&from=now-6h&to=now-5s&var-Controller=All&var-Site=All&var-AP=All&var-Switch=All&var-Wireless=All&var-Wired=All&var-Identifier=$tag_name%20$tag_mac"
-/opt/google/chrome/chrome "http://192.168.1.21:3000/d/O4NHB_Mnk/unifi-poller-network-sites-influxdb?orgId=1&from=now-3h&to=now-5s"
-/opt/google/chrome/chrome "http://192.168.1.21:3000/d/wFVvf_Gnz/unifi-poller-uap-insights-influxdb?orgId=1&refresh=30s"
-}
-##############################################################################
-function watchallofmyoffice () {
-nohup /media/dockerfiles/webcamstreamer/workingsilent.sh > /dev/null 2>&1 &
-ssh officelaptop 'nohup /home/meir/dockerfiles/webcamstreamer/workingsilent.sh > /dev/null 2>&1 &'
-}
-
-# readarray -t IPS< <(sudo nmap -Pn 192.168.0.1/24 -p 554,1935,80,8080  | grep "report" | cut -d " " -f5)
 # SCANNING
 ##############################################################################
-function RANDPRON () {
-while true; do
-DIR="/media/DATALVM/PRON"
-readarray -t VID< <(find $DIR -maxdepth 3 -type f | shuf -n100)
-totem "${VID}"
-done
-}
 
 function FIXXAUTHORITY () {
 nohup /usr/lib/xorg/Xorg vt1 -displayfd 3 -auth /run/user/121/gdm/Xauthority -background none -noreset -keeptty -verbose 3 > /dev/null 2>&1 &
@@ -79,22 +61,21 @@ nohup /usr/lib/xorg/Xorg vt2 -displayfd 3 -auth /run/user/1000/gdm/Xauthority -b
 
 ##############################################################################
 function SCANDHCP () {
-sudo nmap -sn 192.168.45.1-254 | awk '/Nmap scan/{gsub(/[()]/,"",$NF); print $NF}'
-sudo nmap -sn 192.168.21.1-254 | awk '/Nmap scan/{gsub(/[()]/,"",$NF); print $NF}'
+sudo nmap -sn ${1:?"Error: Requires: 1st 3 octets of network segment as argument"}.1-254 | awk '/Nmap scan/{gsub(/[()]/,"",$NF); print $NF}'
 }
 ##############################################################################
 function SCANSTATICS () {
-sudo nmap -sn 192.168.1.1-254 | awk '/Nmap scan/{gsub(/[()]/,"",$NF); print $NF}'
+sudo nmap -sn ${1:?"Error: Requires: 1st 3 octets of network segment as argument"}.1-254 | awk '/Nmap scan/{gsub(/[()]/,"",$NF); print $NF}'
 }
 ##############################################################################
 function SCANPRINTERS () {
-sudo nmap 192.168.9.1-254 -p 9100
+sudo nmap ${1:?"Error: Requires: 1st 3 octets of network segment as argument"}.1-254 -p 9100
 }
 ##############################################################################
 function nslookupall () {
 if [[ $# -ne 1 ]]; then  echo "Needs an IP address to lookup"; return; fi
 ip=$1
-for x in 192.168.1.1 192.168.1.21 192.168.1.45 ; do
+for x in x.x.x.x x.x.x.y x.y.x.y ; do
 result=$(nslookup "$ip" $x | grep -iE "Address|name")
 result1=$(nslookup "$ip".home.local $x  | grep -iE "Address|name") 
 echo -e "${result}\n${result1}" | sort -u | grep -Ev "^$|0.0.0.0" 
@@ -103,10 +84,10 @@ done
 
 ##############################################################################
 function CreateHostsFile () {
-
-SUBS='192.168.0.0/24 192.168.1.0/24 192.168.2.0/24 192.168.9.0/24'
+# change dns servers ip addresses to local dns servers in your environment 
+SUBS='192.168.0.0/24 192.168.1.0/24 192.168.2.0/24 192.168.3.0/24' # change to network segments used in your environment
 for x in ${SUBS}; do 
-sudo nmap -sn --resolve-all --dns-servers=192.168.1.1,192.168.1.21 "${x}" | grep -i 'nmap scan' | cut -d" " -f5- | tr -d '()' | awk '{print $2,$1}' | sed "s/^ //g"
+sudo nmap -sn --resolve-all --dns-servers=192.168.1.1,192.168.1.2 "${x}" | grep -i 'nmap scan' | cut -d" " -f5- | tr -d '()' | awk '{print $2,$1}' | sed "s/^ //g"
 done
 }
 ##############################################################################
@@ -116,7 +97,7 @@ curl --request POST \
 	--url 'https://voicerss-text-to-speech.p.rapidapi.com/?key=undefined' \
 	--header 'content-type: application/x-www-form-urlencoded' \
 	--header 'x-rapidapi-host: voicerss-text-to-speech.p.rapidapi.com' \
-	--header 'x-rapidapi-key: 139c604fe9mshcbe439dda3ef3a8p122b5cjsnb41f6370126a' \
+	--header 'x-rapidapi-key: yourapiketorsecret' \
 	--data 'src=$STRINGS' \
 	--data hl=en-us \
 	--data r=0 \
@@ -161,7 +142,7 @@ BTU_PER_HOUR=10000 #EACH HORSEPOWER USES 10k BTU PER HOUR
 BTU_PER_GAL=91500 #Propane contains 92,000 BTU per gallon
 PROPANE_WT_PER_GAL=4.25 #Propane weights 4.2 pounds per gallon
 BTU_HR="0.29307107"
-read -p "How many horsepower is the generator (Duromax is 7)?": GEN_HRSPOWER
+read -p "How many horsepower is the generator?": GEN_HRSPOWER
 read -p "What is the load (Total wattage)?": POWER_USED
 # Calculates the amount of total power (W) that the generator can generate per hour.
 TOTAL_WATTAGE_GENERATED=$((GEN_HRSPOWER * HORSEPOWER))
@@ -199,14 +180,7 @@ for i in "${POWERARRAY[@]}"; do
 done
 echo "Total: $TOTALPOWER Watts"
 }
-##############################################################################
-function TRIMTHEFAT () {
-export LIST="slack teams remmina atop"
-for x in ${LIST}; do pkill -f "$x" || echo "Failed to kill $x" && echo "Killed $x";
-for y in $(pgrep -f "$x"); do pkill -f "$y" || echo "Failed to kill $y" && echo "Killed $y";
-done
-done
-}
+
 ##############################################################################
 # Screen functions and aliases
 function NEWSCREEN () {
@@ -290,35 +264,8 @@ PAYMENT=$(printf '%.*f\n' 2 "$PAYMENT")
 printf "Worked: %s minutes\nPaid: $%s/hr\nPaid: $%s/min\nTotal Owed: $%s\n"  ${MINUTES_WORKED} "${HSALARY}" "${MSALARY}" "${PAYMENT}"
 }
 ##############################################################################
-function OLDTIMERANGETOMONEY () {
-read -p "Hourly Salary?": HSALARY
-read -p "START TIME 24HR FORMAT HH:MM": STARTTIME
-read -p "END TIME 24HR FORMAT HH:MM": ENDTIME
-# Convert start and end times to total minutes
-IFS=: read STARTHR STARTMIN <<< "$STARTTIME"
-IFS=: read ENDHR ENDMIN <<< "$ENDTIME"
-TOTAL_START_MIN=$((10#$STARTHR*60 + 10#$STARTMIN))
-TOTAL_END_MIN=$((10#$ENDHR*60 + 10#$ENDMIN))
-MINUTES_WORKED=$((TOTAL_END_MIN - TOTAL_START_MIN))
-MSALARY=$(echo "scale=10; $HSALARY/60" | bc)
-PAYMENT=$(echo "scale=2; $MINUTES_WORKED*$MSALARY" | bc)
-PAYMENT=$(printf '%.*f\n' 2 "$PAYMENT")
-echo "Worked $MINUTES_WORKED minutes"
-echo "Paid per hour:   $ $HSALARY"
-echo "Paid per minute: $ $(printf '%.*f\n' 2 "$MSALARY")"
-echo "Payment will be $ $PAYMENT"
-}
-##############################################################################
 function FIXSWAP () { sudo swapoff -a && sudo swapon -a ; }
 function scanmynetwork () { sudo nmap -sP "${1}"/24 ; }
-##############################################################################
-# this will allow an ext for anyones name no matter where you are
-function ARD_OUTPUT () {
-touch /home/meir/output1.log /home/meir/output2.log
-ts ["%b %d %Y %H:%M:%S"] </dev/ttyUSB0 > /home/meir/output1.log &
-ts ["%b %d %Y %H:%M:%S"] </dev/ttyUSB1 > /home/meir/output2.log &
-tail -f tail -f /home/meir/output1.log /home/meir/output2.log
-}
 ##############################################################################
 function CHECKSTATES () {
 ARDS=$(ls /dev/ttyUSB*)
@@ -414,20 +361,20 @@ function MAKEDRIVEIMAGE () {
 read -p "Specify the drive or partition to take an image of, i.e. /dev/sdd": DRIVE
 SIZE=$(sudo fdisk -l "$DRIVE" | head -1 | awk '{print $5}')
 #read -p "Specify the total size of this drive or partition is in G": SIZE
-read -p "Specify the location and filename of the image to make, ie. /home/meir/test.gz": FILE
+read -p "Specify the location and filename of the image to make, ie. /home/username/test.gz": FILE
 sudo dd if="$DRIVE" conv=sync,noerror bs=128K | pv -s "$SIZE" | gzip --fast > "$FILE"
 }
 ##############################################################################
 function RESTOREDRIVEIMAGE () {
 read -p "Specify the drive or partition to drop the image on, i.e. /dev/sdd": DRIVE
 #read -p "Specify the total size of this file in G": SIZE
-read -p "Specify the location and filename of the image ie. /home/meir/test.gz": FILE
+read -p "Specify the location and filename of the image ie. /home/username/test.gz": FILE
 SIZE=$(stat -c %s FILE)
 gunzip -c "$FILE" | pv -s "$SIZE" | sudo dd of="$DRIVE"
 }
 ##############################################################################
 function WRITEISOTOUSB () {
-read -p "Specify the location and filename of the ISO file ie. /home/meir/ubuntu.iso": FILE
+read -p "Specify the location and filename of the ISO file ie. /home/username/ubuntu.iso": FILE
 read -p "Specify the USB drive (target), i.e. /dev/sdd": DRIVE
 SIZE=$(stat -c %s "${FILE}")
 sudo umount "${DRIVE}" && echo "Umounted the USB Drive"
@@ -454,38 +401,21 @@ if ! [[ $# -eq 1 ]]; then echo "Pls specify a target Ip or host to flood ping"; 
 sudo ping -i 0 "$1"
 }
 ##############################################################################
-# This program will tell you how much your silver is worth
-#silver ()
-#{
-#echo " Please tell me how many ounces you have of silver "
-#read silver
-#echo " Please tell me how many ounces you have of gold "
-#read gold
-#date='date +"%y %b"'
-#Prices='w3m -dump "http://www.monex.com/monex/controller?pageid=prices" >  gold.txt | grep -i
-#Bullion'
-#echo $Prices
-#}
-
-##############################################################################
-#Times - the zmanim of Baltimore
-function Times () { w3m -dump "http://www.luach.com/posts/Region/baltimore" | grep -m 13 -w Zmanim -A 13; }
-##############################################################################
 # Define (Definition)
 
 # Define a word - USAGE: define dog
 function define () {
 w3m -dump "http://www.google.com/search?hl=en&q=define%3A+${1}&btnG=Google+Search" |
 grep -m 3 -w "*"  | sed 's/;/ -/g' | cut -d- -f1 > /home/meir/templookup.txt
-                        if [[ -s  /home/meir/templookup.txt ]] ;then
+                        if [[ -s  /tmp/templookup.txt ]] ;then
                                 until ! read response
                                         do
                                         echo "${response}"
-                                        done < /home/meir/templookup.txt
+                                        done < /tmp/templookup.txt
                                 else
                                         echo "Sorry $USER, I can't find the term \"${1} \""
                         fi
-rm -f /home/meir/templookup.txt
+rm -f /tmp/templookup.txt
 }
 ##############################################################################
 
@@ -524,61 +454,6 @@ function ask()
     esac
 }
 
-##############################################################################
-
-# This is cool additions to the Bash shell.
-# Weather, Stock, Translate (spanish, french), Define (definitions).
-#
-
-# Weather by us zip code - Can be called two ways # weather 50315 # weather "Des Moines"
-#weather ()
-#{
-#declare -a WEATHERARRAY
-#WEATHERARRAY=( "w3m -dump
-#"http://www.google.com/search?hl=en&lr=&client=firefox-a&rls=org.mozilla%3Aen-US%3Aofficial&q=weather+${1}&btnG=Search"
-#| grep -A 20
-#-m 1
-#$echo ${WEATHERARRAY[@]}
-#}
-
-#alias temp=weather
-
-
-#stock ()
-#{
-#stockname="w3m -dump http://finance.yahoo.com/q?s=${1} | grep -i ":${1})" | sed -e 's/Delayed.*$//"
-#stockadvise="${stockname} - delayed quote."
-#declare -a STOCKINFO
-#STOCKINFO=('w3m -dump http://finance.yahoo.com/q?s=${1} | egrep -i "Last Trade:|Change:|52wk Range:"')
-#stockdata='echo ${STOCKINFO[@]}'
-#        if [[ ${#stockname} != 0 ]] ;then
-#                echo "${stockadvise}"
-#                echo "${stockdata}"
-#                        else
-#                        stockname2=${1}
-#                        lookupsymbol='w3m -dump -nolist http://finance.yahoo.com/lookup?s="${1}" | grep -A 1 -m 1 "Portfolio" | grep -v "Portfolio" | sed 's/\(.*\)Ad$
-#                                if [[ ${#lookupsymbol} != 0 ]] ;then
-#                                echo "${lookupsymbol}"
-#                                        else
-#                                        echo "Sorry $USER, I can not find ${1}."
-#                                fi
-#}
-
-##############################################################################
-
-# Translate
-
-#Translate a Word  - USAGE: translate house spanish  # See dictionary.com for available languages (there are many).
-#translate ()
-#{
-#TRANSLATED='w3m -dump "http://dictionary.reference.com/browse/${1}" | grep -i -m 1 -w "${2}:" | sed 's/^[ \t]*//;s/[ \t]*$//'
-#if [[ ${#TRANSLATED} != 0 ]] ;then
-#        echo "\"${1}\" in ${TRANSLATED}"
-#       else	echo "Sorry, I can not translate \"${1}\" to ${2}"
-#fi
-#}
-##############################################################################
-# Define (Definition)
 
 # Define a word - USAGE: define dog
 define () {
@@ -604,43 +479,8 @@ read -p "Where is the file/folder located?": location
 ##############################################################################
 # This is for encoding wmv to avi
 mencoder-auto () {
-#echo "full path of wmv file (excluding the name of file)?"
-#read path
 read -p "name of file?": filename
 mencoder "$filename" -ofps 23.976 -ovc lavc -oac copy -o "$filename".avi
-}
-
-##############################################################################
-function shabbos_old () {
-START=$(w3m -dump "http://www.hebcal.com/shabbat/?geo=zip&zip=21209&m=72" | grep -w "Candle lighting" | cut -f 9 -d ' ')
-END=$(w3m -dump "http://www.hebcal.com/shabbat/?geo=zip&zip=21209&m=72" | grep -w "Candle lighting" -A2| tail -1  | cut -f 10 -d ' ')
-echo Shabbos starts at "$START"
-echo Havdalah is at "$END"
-}
-##############################################################################
-
-function shabbos () {
-END=$(w3m -dump "https://www.ou.org/zmanim/baltimore-md-us/" | grep -w "Havdala" | awk '{print $2$3}')
-START=$(w3m -dump "https://www.ou.org/zmanim/baltimore-md-us/" | grep -w "candle lighting" | awk '{print $4$5}')
-echo Shabbos starts at "$START"
-echo Havdalah is at "$END"
-}
-##############################################################################
-
-function fasttimes () {
-END=$(w3m -dump "https://www.ou.org/zmanim/baltimore-md-us/" | grep -w "Tzeis 595°" | grep -ioEw "[0-9]+:[0-9]+\s+[aA|pP][mM]" | xargs)
-START=$(w3m -dump "https://www.ou.org/zmanim/baltimore-md-us/" | grep -w "Alos HaShachar" | grep -ioEw "[0-9]+:[0-9]+\s+[aA|pP][mM]" | xargs)
-echo Fast Starts at "$START"
-echo Fast Ends at "$END"
-}
-
-function fasttimesyomkippur () {
-SHKIA=$(w3m -dump "https://www.ou.org/zmanim/baltimore-md-us/" | grep -w "Shkia" | grep -ioEw "[0-9]+:[0-9]+\s+[aA|pP][mM]" | xargs)
-START=$(date --date="${SHKIA} -18 min" +'%l:%M %p')
-END=$(w3m -dump "https://www.ou.org/zmanim/baltimore-md-us/" | grep -w "Tzeis Hakochavim (42 minutes)" | grep -ioEw "[0-9]+:[0-9]+\s+[aA|pP][mM]" | xargs)
-
-echo Fast Starts at "$START"
-echo Fast Ends at "$END"
 }
 
 
@@ -652,7 +492,7 @@ function NETWORK_TEST () {
 service network restart
 echo "Testing connectivity to the gateway"
 
-if ping -c 3 192.1.1.1 > /dev/null 2>&1; then
+if ping -c 3 192.168.1.1 > /dev/null 2>&1; then  # gw ip address
 echo "Successfull communication with the gateway"
 else
 echo -e "FAILED to communicate with the gateway\nCheck your network settings, this is a fatal error."
@@ -707,36 +547,15 @@ fi
 }
 ##############################################################################
 
-SIDDURDIR="/media/ALLDATA2/00_NZBS/Torah/Text/Siddurim"
 
-function prayearlymorning () {
-acroread /a page=2 $SIDDURDIR/The-Morning-Blessings-Nusaḥ-Ha-Ari-ḤaBaD1.pdf
-}
-##############################################################################
-
-function praySHEMA () {
-acroread /a page=18 $SIDDURDIR/Shaḥarit-Morning-Nusaḥ-Ha-Ari-ḤaBaD.pdf
-}
-##############################################################################
-
-function prayMinchah () {
-acroread /a page=5 $SIDDURDIR/Minḥah-Afternoon-Nusaḥ-Ha-Ari-ḤaBaD.pdf
-}
-##############################################################################
-
-alias SCRIPTS='cd /media/ALLDATA2/M_J/Meir/vcProjects/BashScripts'
-alias vco='/media/ALLDATA2/00_NZBS/M_J/MEIR/vcProjects/BashScripts/vco'
-alias fixperms='ssh -t nas "sudo chmod 777 -R /media/ALLDATA2/00_NZBS/M_J/MEIR/CollabraLink/ /media/ALLDATA2/00_NZBS/M_J/MEIR/vcProjects/" && echo done'
-function whatprovides () { sudo apt-file search "${1}" ; }
-
-function RECORDSCREEN () { simplescreenrecorder --start-hidden --start-recording  --settingsfile=/home/meir/.ssr/meirsettings.conf & }
+function RECORDSCREEN () { simplescreenrecorder --start-hidden --start-recording  --settingsfile=${HOME}/.ssr/${USER}settings.conf & }
 
 function RECORDSCREEN () {
 OPTS=$1
 unset STARTREC
 if [[ $# -eq 0 ]]; then	read -p "Record The (Right) Screen Now - Y/N?":  STARTREC
 	if [[ ${STARTREC^^} == "Y" ]]; then
-	simplescreenrecorder --start-hidden --start-recording  --settingsfile=/home/meir/.ssr/meirsettings.conf &
+	simplescreenrecorder --start-hidden --start-recording  --settingsfile=${HOME}/.ssr/${USER}settings.conf &
        	fi
 fi
 case ${OPTS^^} in
@@ -756,32 +575,6 @@ case ${OPTS^^} in
 
 ##############################################################################
 
-
-function LIMIT () {
-
-if [[ "$#" -ne 2 ]]; then
-
-clear
-
-cat << EOF
-To use this command, type in the following format;
-LIMIT PCNAME AMOUNT_OF_MINUTES_BEFORE_LOCKING
-For example; LIMIT KIDS1 30
-This will give 30 minutes to KIDS1 (Refael's pc) before locking.
-EOF
-
-else
-
-if [[ "$1" = "KIDS1" ]]; then KIDPC=192.168.1.201
-elif [[ "$1" =  "KIDS2" ]]; then KIDPC=192.168.1.202
-elif [[ "$1" = "KIDS3" ]]; then KIDPC=192.168.1.203
-fi
-
-ssh $KIDPC "at now +$2 minutes <<< 'DISPLAY=:0 gnome-screensaver-command -l'"
-
-fi
-}
-##############################################################################
 
 function YATZEE () {
 DIE1=0; DIE2=1; DIE3=2 DIE4=3 DIE5=4
@@ -814,64 +607,14 @@ printf "%b\n" "$(date +"%b/%d/%Y:%H:%M:%S") $*" >> $LOGFILE
 }
 
 ##############################################################################
-: <<'END_COMMENT'
-# multiline comment starts here
-This is a heredoc (<<) redirected to a NOP command (:). The ' ' around END_COMMENT disables BASH command and var execution/expansion.
-function dmiready () {
-# DMI resources
-/opt/google/chrome/chrome  --profile-directory="Profile 4" --new-window "https://dminc-cp.deltekenterprise.com/cpweb/cploginform.htm?1641966778"
-/opt/google/chrome/chrome "https://outlook.office.com/mail/inbox/id/AAQkADMxY2YwOTJmLTk3MzYtNGU1NC1hNjJhLTBkYzI5ODQ1M2I5MgAQAPQEpdrgMc9BiSwvlldAEy0%3D"
-/opt/google/chrome/chrome "https://outlook.office.com/calendar/view/week"
-/opt/google/chrome/chrome "https://teams.microsoft.com/_#/conversations/19:meeting_YzBjYWQyZjUtYTY1Yi00M2UyLThmZjktMGRlYmQzMWUzNWJh@thread.v2?ctx=chat"
-/opt/google/chrome/chrome "https://myapplications.microsoft.com/"
-/opt/google/chrome/chrome "https://docs.google.com/document/d/1teEWB9vGua1PgLW_N-TW5rN5XVhfts5WBRMMCttMtGk/edit#"
-# WMATA online resources
-/opt/google/chrome/chrome "https://wmata.service-now.com/workingremotely"
-/opt/google/chrome/chrome "https://outlook.office.com/mail/MSLazar@wmata.com/"
-}
-END_COMMENT
-# multiline comment ends here
-
-##############################################################################
-# COLLABRALINK
-: <<'END_COMMENT'
-# multiline comment starts here
-function clready () {
-env DISPLAY=:0 /opt/google/chrome/chrome  --profile-directory="Profile 2" --new-window "https://mail.google.com/mail/u/0/#inbox"
-env DISPLAY=:0 /opt/google/chrome/chrome "https://calendar.google.com/calendar/u/0/r?pli=1"
-env DISPLAY=:0 /opt/google/chrome/chrome "https://drive.google.com/drive/my-drive"
-env DISPLAY=:0 /opt/google/chrome/chrome "https://myapplications.microsoft.com/"
-env DISPLAY=:0 /opt/google/chrome/chrome "https://collabralink-cp.costpointfoundations.com/cpweb/cploginform.htm?1516388599"
-env DISPLAY=:0 /opt/google/chrome/chrome "https://meet.google.com/cxm-dayh-hgn?authuser=1&hs=122"
-}
-END_COMMENT
-# multiline comment ends here
-##############################################################################
 alias SHOWRUNNINGVMS='echo $(vboxmanage list runningvms | cut -d " " -f1)'
 alias SLEEPVM='VBoxManage list runningvms | cut -d"\"" -f2 2> /dev/null | while read -r VM; do VBoxManage controlvm ${VM} savestate; done'
-alias RESUMEVM='vboxmanage startvm "Windows10_NGDC" --type headless'
-alias STARTTHEVM='nohup vboxmanage startvm "Windows10_NGDC" --type headless > /dev/null 2>&1 &'
+alias RESUMEVM='vboxmanage startvm "vmname" --type headless'
+alias STARTTHEVM='nohup vboxmanage startvm "vmname" --type headless > /dev/null 2>&1 &'
 alias STARTALLVMS='VBoxManage list vms | cut -d"\"" -f2 2> /dev/null | while read -r VM; do VBoxManage startvm ${VM} --type headless &; done'
 alias whatprovides='dpkg -S'
 alias fixkeyboard='setxkbmap'
-alias siddur_morn='acroread /a page=2 /media/ALLDATA2/00_NZBS/Torah/Text/Siddurim/The-Morning-Blessings-Nusah-Ha-Ari-HaBaD1.pdf'
 
-# multiline comment starts here
-: <<'END_COMMENT'
-function siddur () {
-SIDDURDIR="/media/ALLDATA2/00_NZBS/Torah/Text/Siddurim"
-LATESTSHEMA=$(w3m -dump http://www.myzmanim.com/day.aspx?vars=42795595 | grep -i -A 8 "today" | grep Shema | awk '{print $2}')
-
-MORNINGHOUR=$(w3m -dump http://www.myzmanim.com/day.aspx?vars=42795595 | grep -i -A 8 "today" | grep Shema | awk '{print $2}' | cut -d ":" -f1)
-MONRINGMIN=$(w3m -dump http://www.myzmanim.com/day.aspx?vars=42795595 | grep -i -A 8 "today" | grep Shema | awk '{print $2}' | cut -d ":" -f2)
-EARLYMORN=echo "$MONRINGMIN-30" | bc
-
-LATESTMINCHA=$(w3m -dump http://www.myzmanim.com/day.aspx?vars=42795595 | grep -i -A 8 "today" | grep Sunset | awk '{print $2}')
-MAARIVTIME=$(w3m -dump http://www.myzmanim.com/day.aspx?vars=42795595 | grep -i -A 8 "today" | grep Nightfall | awk '{print $2}')
-acroread /a page=2 $SIDDURDIR/The-Morning-Blessings-Nusah-Ha-Ari-HaBaD1.pdf
-}
-END_COMMENT
-# multiline comment ends here
 ##############################################################################
 
 function MEMCPULIST () {
@@ -927,52 +670,6 @@ if [[ $? = 0 ]]; then echo "SUCCESS!"; fi
 }
 ##############################################################################
 
-alias proxyme_on='source ~/nordvpn_proxy.env'
-alias proxyme_off='source ~/no_proxy.env'
-
-
-function proxyme () {
-# donot use except for status
-#export http_proxy=http://192.168.1.45:8118
-#export https_proxy=http://192.168.1.45:8118
-#export ftp_proxy="http://192.168.1.45:8118
-if [[ $# -eq 1 ]]; then PARAM=$1; else PARAM=ON; fi
-case "${PARAM^^}" in
-ON|1|SET|START|VPN )
-	nc -w3 192.168.1.45 8118 || echo "proxy not running"; return;
-	source ~/nordvpn_proxy.env
-	bash ~/nordvpn_proxy.env
-        # export {HTTP,HTTPS,FTP,SOCKS}_PROXY="http://192.168.1.45:8118/" ;
-	# export NO_PROXY='localhost,127.0.0.1,::1,.example.com' ;
-	# export {http,https,ftp,socks}_proxy="http://192.168.1.45:8118/" ;
-        # export no_proxy='localhost,127.0.0.1,::1,.example.com' ;
-	gsettings set org.gnome.system.proxy.http host '192.168.1.45';
-	gsettings set org.gnome.system.proxy.http port '8118' ;
-	gsettings set org.gnome.system.proxy.http host '192.168.1.45';
-	gsettings set org.gnome.system.proxy.http port '8118' ;
-	gsettings set org.gnome.system.proxy.ftp host '192.168.1.45';
-	gsettings set org.gnome.system.proxy.ftp port '8118' ;
-
-	#Setting the Dynamic socks proxy
-	gsettings set org.gnome.system.proxy.socks host '192.168.1.45';
-	gsettings set org.gnome.system.proxy.socks port '8118' ;
-
-	#Setting Mode
-	gsettings set org.gnome.system.proxy mode 'manual' ;;
-
-OFF|0|UNSET|STOP|MANUAL )
-	source ~/no_proxy.env
-	#unset {HTTP,HTTPS,FTP,SOCKS}_PROXY ;
-	#unset {http,https,ftp,socks}_proxy ;
-	gsettings set org.gnome.system.proxy mode 'none';;
-STATUS|3|QUERY )
-	if [[ -n "${HTTP_PROXY}" ]];
-	then echo "You are using NORDVPN proxy - IP=$(curl -s ifconfig.me)" ;
-	else echo "No proxy set. IP=$(curl -s ifconfig.me)" ;
-	fi ;;
-esac
-}
-
 function removegnomeextension () {
 	FOUND[1]=$(sudo find "/usr/share/gnome-shell/extensions" -type d -iname "*${1}*" 2>/dev/null)
 	FOUND[2]=$(find "${HOME}/.local/share/gnome-shell/extensions" -type d -iname "*${1}*"  2>/dev/null)
@@ -984,45 +681,9 @@ done
 }
 
 
-function KIDSLOOKUP () {
-KIDS="kids1 kids2 kids3 kids4 kids5 kids6"
-for pc in ${KIDS}; do
-echo "${pc}.home.local = $(nslookup "${pc}".home.local 192.168.1.45 | tail -2 | cut -d' ' -f2 | head -1)"
-done
-}
-
-##############################################################################
-
-#alias WATCH='/home/meir/.motion/monitorwebcam.sh &'
-#alias STOPWATCH='pkill -f monitorwebcam.sh'
-
-: <<'END_COMMENT'
-# multiline comment starts here
-function HIDE () {
-mv /home/meir/.motion/oldconfigs /home/meir/.motion/.oldconfigs
-chmod 001 /home/meir/.motion/.oldconfigs
-}
-##############################################################################
-
-function UNHIDE () {
-mv /home/meir/.motion/.oldconfigs /home/meir/.motion/oldconfigs
-chmod 777 /home/meir/.motion/oldconfigs
-}
 ##############################################################################
 
 
-function MOTIONDETECT () {
-nohup python /media/ALLDATA3/Installs/Detect_Motion/MeirRoom/MotionDetector_Meir_Room.py > /dev/null 2>&1 &
-}
-##############################################################################
-
-function MOTIONSTOP () {
-pkill -f /media/ALLDATA3/Installs/Detect_Motion
-caja /media/ALLDATA3/Installs/Detect_Motion/MeirRoom
-}
-END_COMMENT
-# multiline comment ends here
-##############################################################################
 
 
 function EML () {
@@ -1035,8 +696,8 @@ munpack "$1"
 alias ll='ls -alh'
 
 function SCANMYSSH () {
-read -p "Specify the port(s) to check separate each by a comma (default 22,613,2222)": PORTS
-if [[ -z $PORTS ]]; then PORTS="22,613,2222"; fi
+read -p "Specify the port(s) to check separate each by a comma (default 22,80,443)": PORTS
+if [[ -z $PORTS ]]; then PORTS="22,80,443"; fi
 echo -e "Choices are;\n- Dell\n- Hewlett Packard\n- QEMU - virtual machine\n- B-Link - IP CAMS"
 read -p "Choose which type of computer to look for": PCTYPE
 PORTNO=$(echo $PORTS | wc -w)
@@ -1045,7 +706,6 @@ sudo nmap -p$PORTS 192.1.1.1/8 | grep -B$PORTNO "$PCTYPE" | grep -v "closed"
 }
 ##############################################################################
 alias SUSPEND='sudo pm-suspend'
-
 alias FINDHOSTNAMES='nmap -sL 192.1.1.0/8 | grep "("'
 function SCANPORTS () {
 echo "Scanning TCP ports..."
@@ -1066,98 +726,6 @@ autologin-user=username" > /usr/share/lightdm/lightdm.conf.d/60-lightdm-gtk-gree
 }
 ##############################################################################
 
-function weedmath {
-read -r -p "Enter the dollar amount given": MONEY
-read -r -p "Enter the amount of money for an eighth": EIGHTH
-GRAM=$(echo "scale=3;$EIGHTH/3.5" | bc)
-GIVE=$(echo "scale=2;$MONEY/$GRAM" | bc)
-echo "It costs ""$GRAM"" USD per gram"
-echo "For $MONEY USD, give $GIVE grams"
-}
-##############################################################################
-: <<'END_COMMENT'
-# multiline comment starts here
-##############################################################################
-
-function doorbell () {
-
-if [[ $# -ne 1 ]] || ! [[ $1 =~ ^[0-9]+$ ]]; then
-clear
-echo  "Type doorbell with one of these numbers;"
-echo -e "0 - Show Status\n1 - ALL Alerts\n2 - NO Alerts"
-echo -e "3 - PopUp\n4 - Audio\n5 - Text Message"
-echo -e "6 - PopUp+Audio\n7 - Audio+Text\n8 - PopUp+Text"
-echo -e "9 - Snooze alerts for 24 hours"
-fi
-
-DIR="/media/RAID0/MEDIA/Meir/Doorbell"
-
-case $1 in
-0 ) ls -1 $DIR | grep -v ".sh" || echo "No Alerts";;
-1 ) rm -f $DIR/Snooze; touch $DIR/Audio $DIR/PopUp $DIR/Text;;
-2 ) rm -f $DIR/Audio $DIR/PopUp $DIR/Text;;
-3 ) touch $DIR/PopUp; rm -f $DIR/Audio $DIR/Text;;
-4 ) touch $DIR/Audio; rm -f $DIR/PopUp $DIR/Text;;
-5 ) touch $DIR/Text; rm -f $DIR/PopUp $DIR/Audio;;
-6 ) touch $DIR/PopUp $DIR/Audio; rm -f $DIR/Text;;
-7 ) touch $DIR/Audio $DIR/Text; rm -f $DIR/PopUp;;
-8 ) touch $DIR/PopUp $DIR/Text; rm -f $DIR/Audio;;
-9 ) touch $DIR/Snooze;;
-esac
-}
-##############################################################################
-
-function mailalert () {
-
-if [[ $# -ne 1 ]] || ! [[ $1 =~ ^[0-9]+$ ]]; then
-clear
-echo  "Type mailalert with one of these numbers;"
-echo -e "0 - Show Status\n1 - ALL Alerts\n2 - NO Alerts"
-echo -e "3 - PopUp\n4 - Audio\n5 - Text Message"
-echo -e "6 - PopUp+Audio\n7 - Audio+Text\n8 - PopUp+Text"
-echo -e "9 - Snooze alerts for 4 hours"
-fi
-
-DIR="/media/RAID0/MEDIA/Meir/Mail"
-
-case $1 in
-0 ) ls -1 $DIR | grep -v ".sh" || echo "No Alerts";;
-1 ) rm -f $DIR/Snooze; touch $DIR/Audio $DIR/PopUp $DIR/Text;;
-2 ) rm -f $DIR/Audio $DIR/PopUp $DIR/Text;;
-3 ) touch $DIR/PopUp; rm -f $DIR/Audio $DIR/Text;;
-4 ) touch $DIR/Audio; rm -f $DIR/PopUp $DIR/Text;;
-5 ) touch $DIR/Text; rm -f $DIR/PopUp $DIR/Audio;;
-6 ) touch $DIR/PopUp $DIR/Audio; rm -f $DIR/Text;;
-7 ) touch $DIR/Audio $DIR/Text; rm -f $DIR/PopUp;;
-8 ) touch $DIR/PopUp $DIR/Text; rm -f $DIR/Audio;;
-9 ) touch $DIR/Snooze;;
-esac
-}
-##############################################################################
-
-
-function SAMETIME () {
-if [[ $# -ne 1 ]] || ! [[ $1 =~ ^[0-3]+$ ]]; then
-clear
-echo  "Type mailalert with one of these numbers;"
-echo "0 - Show Status"
-echo "1 - Text Alerts"
-echo "2 - NO Alerts"
-echo "3 - Snooze alerts for 1 hour"
-fi
-
-DIR="/media/ALLDATA2/00_NZBS/M_J/MEIR/IBM_Job/SametimeAlert"
-
-case $1 in
-0 ) ls -1 $DIR; if [[ $(ls -1 $DIR | wc -l) = 0 ]]; then echo "No Alerts"; fi ;;
-1 ) touch $DIR/Text;;
-2 ) rm -f $DIR/Text;;
-3 ) touch $DIR/Snooze;;
-esac
-}
-END_COMMENT
-# multiline comment ends here
-##############################################################################
 
 function FIXBROKENPKGS () {
 sudo cp "/etc/apt/sources.list" "/etc/apt/sources.list{,.backup}.$(date "+%F_%T")";
@@ -1188,8 +756,8 @@ awk '{
 }
 
 function DELBGPIC () {
-PIDFILE=/home/meir/PIDS/change_bg.pid
-# WALLPAPERDIR="/media/ALLDATA2/Pictures/MISC/Wallpaper"
+PIDFILE=${HOME}/change_bg.pid
+# WALLPAPERDIR="/path/to/wallpapers"
 PIC=$(tail -1 $PIDFILE | awk '{print $2}')
 read -p "Delete $PIC (Y/N)": DELPIC
 if [[ ${DELPIC^} == "Y" ]]; then rm -f "${PIC}" && echo "${PIC} deleted"; fi
@@ -1222,31 +790,8 @@ STRING=$1
 ps -eo user,pid,cmd -q "$(pgrep -f "${STRING}" 2> /dev/null | xargs)"
 }
 
-function TWOFACTOR () {
-read -p "Passphrase": PASS
-clear
-echo "Type in the secret info into the vim session and save"
-sleep 2
-vim -c 'startinsert' ~/TWOFA.gpg +1
-if ! [[ -f ~/TWOFA.gpg ]]; then return; fi
-#echo "$PASS" | gpg --batch --yes --passphrase-fd 0 --decrypt ~/TWOFA.gpg
-echo "$PASS" | gpg --batch --no-tty --passphrase-fd 0 --decrypt -o ~/TWOFA_DECRYPT.txt ~/TWOFA.gpg
-clear
-echo "Copy the output below to the window and press enter"
-echo -e "\n\n"
-cat ~/TWOFA_DECRYPT.txt
-cat ~/TWOFA_DECRYPT.txt | xclip
-echo -e "\n\n"
-read -p "Hit Enter to clear the screen and delete files"
-clear
-rm -f ~/TWOFA_DECRYPT.txt ~/TWOFA.gpg
-}
-##############################################################################
-
 
 alias RESETMENUBAR='mate-panel --reset'
-alias shuls='firefox "https://www.ohelmoshebaltimore.com" "http://www.pikesvillejewish.com/"'
-
 function FIXKERNELPANIC () {
 	echo "First boot to another kernel, then run this function"
 	echo "hit ctrl+c if you haven't yet booted to another kernel"
@@ -1301,8 +846,7 @@ function zippassword () {
 if [[ $# -eq 0 ]]; then
 read -r -p "What format, zip, 7z, etc.": EXT
 read -r -p "/path/and/file_or_dir_Name to zip": ZIPDATA
-read -r -p "Password to encrypt, default is S@1Gd0cs@_$(date '+%Y')": PASS
-PASS=${PASS:=S@1Gd0cs@_$(date '+%Y')}
+read -r -p "Password to encrypt": PASS
 elif [[ $# -ne 3 ]]; then
 echo -e '$@ usage:\n$@ <format (zip, 7z, etc)> </path/to/data> <password to encrypt>'
 return
@@ -1331,34 +875,12 @@ if 7za t -r "${ZIPDATA}.${EXT}" -p"${PASS}"; then echo "COMPLETED SUCCESSFULLY..
 echo "LISTING CONTENTS OF THE ARCHIVE..."
 7za l -slt "${ZIPDATA}.${EXT}"
 }
-##############################################################################
 
-alias BACKUPFILES='cd "/media/ALLDATA2/M_J/Meir/vcProjects/BashScripts/Backup and Restore" && ./Backup_ANY_DATA.sh'
-
-function DILUTION () {
-read -r -p "What is the % of active ingredient in the solution?": PREMIXPER
-read -r -p "What is the % you are trying to reach?": POSTMIXPER
-read -r -p "How many oz of mixed liquid do you want as the end result?:" TOTALVOL
-#POSTMIXCONCENTRATION=$(echo "$PREMIXPER/$TOTALVOL" | bc)
-#$TOTALVOL x $PREMIXPER
-
-#echo "Mix $ACTIVECHEM oz with $SOLVENT oz to make $TOTALVOL
-# work in progress....
-}
 ##############################################################################
 
 function findhere () {
 	find . -iname "*${1}*" -print
 }
-##############################################################################
-alias PVZ='/home/meir/Desktop/Games/Completed_Plants_vs_Zombies/run.sh'
-alias HIBERNATE='/media/ALLDATA2/M_J/Meir/vcProjects/BashScripts/Hibernation/hibernate.sh'
-
-alias FIXSOUND='sudo alsa force-reload; pulseaudio -k; sleep 5; pulseaudio --start'
-alias RESTARTSOUND='pulseaudio -k; pulseaudio --start'
-
-##############################################################################
-alias meeting='/usr/bin/vlc --started-from-file --start-time=$(shuf --input-range=10-60 -n1) /home/meir/Videos/faketeamsmeeting'
 
 alias init5='sudo systemctl isolate graphical.target'
 alias init3='sudo systemctl isolate multi-user.target'
@@ -1386,8 +908,6 @@ echo "drm_kms_helper" | sudo tee -a /etc/modprobe.d/local.conf
 echo 'drm_kms_helper' | sudo tee -a /etc/modules-load.d/local.conf
 echo "options drm_kms_helper poll=N" | sudo tee -a /etc/modprobe.d/local.conf
 }
-
-
 
 ##############################################################################
 function generaterandom () {
@@ -1424,8 +944,6 @@ sudo apt purge ukui-desktop-environment ubuntukylin-default-settings peony-commo
 }
 ##############################################################################
 
-
-
 function KILLZOMBIES () {
 readarray -t ZOMBIES< <(ps -aux | grep Z | awk '{print $2}'| grep -v PID)
 
@@ -1450,32 +968,6 @@ CALC=$(echo "scale=2; $AMT_INGR2/$AMT_INGR1" | bc)
 echo -e "RATIO\n1 part - $TYP_INGR1\n${CALC} parts - ${TYP_INGR2}"
 }
 
-function TEMPSAVE_GROUPFILES_INTO_DIRS () {
-# creates a dir for each uniq file in this tempsave folder for easier finding later
-# This can take a long time depending on how many files
-MAINDIR='/media/ALLDATA2/M_J/Meir/vcProjects/BashScripts/TEMPSAVE'
-ALLFILES=$(find ${MAINDIR} -maxdepth 1 -type f -printf "%f\n")
-
-while IFS= read -r x; do 
-	NEWDIR=$(echo ${x} | sed -E 's/.[0-9]+-[0-9]+-[0-9]+.*//g')
-	test -d "${MAINDIR}/${NEWDIR}" || mkdir "${MAINDIR}/${NEWDIR}"; 
-	mv -f "${MAINDIR}/${x}" "${MAINDIR}/${NEWDIR}"
-done <<< "${ALLFILES}"
-}
-
-
-
-
-#alias printf='printf "%s\n"'
-
-function startbarrier () {
-	for x in $(pgrep -f barrier); do echo "removing old instance -${x}"; kill -9 "${x}"; done
-nohup barrier -f --debug INFO --name linuxgamer2 --disable-crypto -c /home/meir/barrierconfig --address 192.168.1.44:24800 > /dev/null 2>&1 &
-}
-
-
-alias CHECKTIME='timedatectl status'
-alias ADJUSTTIME='sudo ntpdate 192.168.1.21'
 alias UPDATEALL='sudo apt update; sudo apt upgrade -y; sudo apt autoremove -y; sudo apt autoclean -y; sudo snap refresh'
 
 function reverseorder () {
@@ -1492,12 +984,12 @@ esac
 
 # Ansible shortcuts
 function ANSIBLE_RUNALL () {
-	ansible all -a "$@" -u meir
+	ansible all -a "$@" -u username
 }
 ##############################################################################
 
 function ANSIBLEAPTMODULE () {
-	ansible all -m apt -a "name=$1 state=latest" -u meir
+	ansible all -m apt -a "name=$1 state=latest" -u username
 }
 ##############################################################################
 
