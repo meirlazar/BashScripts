@@ -5,11 +5,12 @@ unset dockerDB
 readarray -t dockerDB< <(for x in $(docker ps --format '{{.Names}}'); do docker inspect ${x} | jq -r '.[0]|"\(.Config.Labels["com.docker.compose.project"]):\(.Config.Labels["com.docker.compose.project.working_dir"]):\(.Config.Labels["com.docker.compose.service"])"'; done)
 }
 function GREPDOCKERCOMPOSE () {
+read -p "Type Path to search in": gdir
 read -p "Type string to search for": STRING
 read -p "Would you like to Find all docker-compose files without this string? Y/N":  INVERT
 case "${INVERT^}" in
-Y|y )   grep -irlv "${STRING}" /home/meir/dockerfiles/*/docker-compose.yml ;;
-N|n )   grep -irl "${STRING}" /home/meir/dockerfiles/*/docker-compose.yml ;;
+Y|y )   grep -irlv "${STRING}" ${gdir}/*/docker-compose.yml ;;
+N|n )   grep -irl "${STRING}" ${gdir}/*/docker-compose.yml ;;
 *   )   echo "Wrong selection" ;;
 esac
 }
@@ -31,36 +32,6 @@ docker-compose -f ${DIR}/docker-compose.yml up -d;
 done
 }
 
-: << 'EOF'
-function WEBAPPS () {
-YAMLFILES=$(find /home/meir/dockerfiles -maxdepth 2 -type f -iname "docker-compose.yml" 2>/dev/null)
-for X in ${YAMLFILES}; do
-YMLFILE=${X##*/}
-FULLDIR=${X%/*}
-CONTNAME=${FULLDIR##*/}
-EOF
-
-: << 'EOF'
-function DOCKER_RUNNING_CONTS_AUTOSTART () {
-echo -e "1 - All currently running containers will be restarted unless stopped"
-read -p "Please make your selection":  SELECT
-if [[ "${SELECT}" == "1" ]]; then docker update --restart unless-stopped $(docker ps -q); fi
-}
-EOF
-
-: << 'EOF'
-function DOCKERRMI () {
-STRING=${1}
-STRING=${STRING:?"Usage: $0 <String to search for images>"; return;}
-TBDEL=$(docker images | grep -i "$STRING") 
-JUSTIMG=$(docker images | grep "$STRING" |  awk '{print $3}')
-printf '%s\n' "${TBDEL}"
-read -p "Delete these images above? (Yy/Nn)": GO
-if [[ "${GO^^}" == Y ]]; then 
-printf '%s\n' "${TBDEL}" | while read -r name; do docker rmi "$name"; done
-fi      
-}
-EOF
 
 function DOCKERPORTSUSED () {
         ALLPORTS=$(docker container ls --format "table {{.ID}}\t{{.Names}}\t{{.Ports}}" -a)
@@ -70,62 +41,8 @@ function DOCKERPORTSUSED () {
 
 
 alias dockerports='docker container ls --format "table {{.Ports}}" | cut -d ">" -f1 | tr -d :-'
-###alias dockerps="docker ps | awk {'print $1,$NF'}"
-###alias DOCKERSTOPALL="docker stop $(docker container list -q -a)"
-###alias DOCKERSTARTALL="docker start $(docker ps -a -q -f status=exited)"
-###alias DOCKERRESTARTALL="docker restart $(docker ps -a -q)"
 alias dockerstopall='for X in $(docker ps -q); do docker stop ${X}; done'
-
-: << 'EOF'
-function D-C () {
-docker-compose -f ~/dockerfiles/$1 pull 
-docker-compose -f ~/dockerfiles/$1 up -d 
-docker logs -f $1
-}
-EOF
-: << 'EOF'
-function D-C () {
-docker-compose -f ~/dockerfiles/$1 pull 
-docker-compose -f ~/dockerfiles/$1 up -d 
-docker logs -f $1
-}
-EOF
-
-: << 'EOF'
-function docker-compose () {
-PARAM="${@}"
-FPARAM="${1}"
-if [[ "${FPARAM}" -eq "up" ]]; then
-docker-compose ${PARAM} --remove-orphans
-docker system prune -fa
-docker volume prune -f 
-fi
-}
-EOF
-
-
-function DOCKERPORTSUSED () {
-        ALLPORTS=$(docker container ls --format "table {{.ID}}\t{{.Names}}\t{{.Ports}}" -a)
-        readarray -t PORTSINUSE< <(echo "${ALLPORTS}" | awk '{for(i=1;i<=NF;i++){if($i~/^:/){print $i}}}' | cut -d '>' -f1 | tr -d :-)
-        printf "%s\n" ${PORTSINUSE[@]}
-}
-
-
 alias dockerports='docker container ls --format "table {{.Ports}}" | cut -d ">" -f1 | tr -d :-'
-
-: << 'EOF'
-PORTSUSED=$(grep -i -A7 "ports:" ${X}  | grep -E '.*[1-9][0-9].*:[1-9][0-9]' | cut -d ':' -f1 | xargs)
-CONTNAME=$(grep -w "container_name:" ${X} | cut -d ":" -f2 | xargs)
-ISRUNNING=$(docker ps | awk '{print $2}' | grep -ic "${CONTNAME}")
-
-for port in "${PORTSUSED}"; do OPENPORTS+=$(netstat -tulpen 2>/dev/null  | awk '{print $1,$4}' | grep "${port}"); done
-
-echo -e "\n\n############ Container - ${CONTNAME}\nLISTENS ON - ${PORTSUSED}\nIS RUNNING = ${ISRUNNING}\nOPEN PORTS = ${OPENPORTS[@]}"
-unset OPENPORTS PORTSUSED CONTNAME ISRUNNING
-done
-}
-EOF
-
 alias dockernames="docker ps --format '{{.Names}}'"
 alias dockershowallinfo='docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Mounts}}\t{{.Ports}}\t{{.Networks}}\t{{.State}}" | tr -s " " | column'
 alias dstopall="docker stop $(docker container list -q -a)"
